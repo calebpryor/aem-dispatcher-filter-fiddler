@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Filter Fiddler</title>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"
+        integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <script>
+        function copy() {
+            let rulesboxtextarea = document.getElementById("rulesbox");
+            rulesboxtextarea.select();
+            document.execCommand("copy");
+        }
+
+        function getExtension(requestString) {
+            let extensionFinal;
+            let extensionRegex1 = /\.(?<extension>[^.][A-z0-9]+)\//;
+            let extension = extensionRegex1.exec(requestString);
+            if (extension) {
+                extensionFinal = extension["groups"]['extension'];
+            } else {
+                let extensionRegex2 = /\.(?<extension>[A-z]+)(\?.*)?$/;
+                let extension = extensionRegex2.exec(requestString);
+                if (extension) {
+                    extensionFinal = extension["groups"]['extension'];
+                }
+            }
+            return extensionFinal;
+        }
+
+        function getMethod(requestString) {
+            let methodFinal;
+            let methodRegex = /(?<method>[A-z]+\ )/;
+            let method = methodRegex.exec(requestString);
+            if (method) {
+                methodFinal = method["groups"]['method'].trim();
+            }
+            return methodFinal;
+        }
+
+        function getPath(requestString, extension) {
+            let pathFinal;
+            let requestStr = requestString;
+            if (extension) {
+                let splitRequestString = splitOnExtension(requestStr, extension);
+                requestStr = splitRequestString[0];
+            }
+            let postPathRegex = /(?<method>[A-z]+\ )?(?<path>.*\/)(?<suffix>.+)$/;
+            let postPath = postPathRegex.exec(requestStr);
+            pathFinal = postPath["groups"]['path'].trim();
+            return pathFinal + "*";
+        }
+
+        function getSelectors(requestString, extension) {
+            let selectorsFinal;
+            if (extension) {
+                let splitRequestString = splitOnExtension(requestString, extension);
+                let preExtension = splitRequestString[0];
+                if (preExtension) {
+                    let selectorsRegex = /(?<selectors>[\.].*[\.])/;
+                    let selectors = selectorsRegex.exec(preExtension);
+                    if (selectors) {
+                        selectors = selectors["groups"]['selectors'].trim();
+                        let selectorArray = selectors.split(".")
+                        for (var i = 0; i < selectorArray.length; i++) {
+                            if (selectorArray[i]) {
+                                if (!selectorsFinal) {
+                                    selectorsFinal = [];
+                                }
+                                selectorsFinal.push(selectorArray[i]);
+                            }
+                        }
+                    }
+                }
+            }
+            return selectorsFinal;
+        }
+
+        function getSuffix(requestString, extension) {
+            let suffixFinal;
+            if (extension) {
+                let splitRequestString = splitOnExtension(requestString, extension);
+                let suffixMiddle = splitRequestString[1];
+                if (suffixMiddle.indexOf("?") !== -1) {
+                    suffixFinal = splitRequestString[1].split("?")[0];
+                } else {
+                    suffixFinal = splitRequestString[1];
+                }
+            }
+            return suffixFinal;
+        }
+
+        function getQuery(requestString, extension) {
+            let queryFinal;
+            if (extension) {
+                let splitRequestString = splitOnExtension(requestString, extension);
+                suffixMiddle = splitRequestString[1];
+                if (suffixMiddle.indexOf("?") !== -1) {
+                    let queryMiddle = splitRequestString[1].split("?")[1];
+                    if (queryMiddle.indexOf("&") !== -1) {
+                        queryFinal = queryMiddle.split("&");
+                    } else {
+                        queryFinal = [];
+                        queryFinal.push(queryMiddle);
+                    }
+                }
+            }
+            return queryFinal;
+        }
+
+        function getUrl(requestString) {
+            let urlFinal;
+            let method = getMethod(requestString);
+            let urlMiddle = requestString.replace(method, "").trim();
+            if (urlMiddle.indexOf("?")) {
+                urlFinal = urlMiddle.split("?")[0];
+            } else {
+                urlFinal = urlMiddle;
+            }
+            return urlFinal + "*";
+        }
+
+        function splitOnExtension(requestString, extension) {
+            let splitRequest
+            if (extension) {
+                let splitCharacter = "    ";
+                let tempRequestString = requestString.replace(extension, splitCharacter);
+                splitRequest = tempRequestString.split(splitCharacter);
+            }
+            return splitRequest;
+        }
+
+        function generateRule(number, method, path, url, extension, selector, suffix, query) {
+            var baseRuleNumber = 3000;
+            let rule = "/0" + (baseRuleNumber + number) + " {\n";
+            rule += '\t/type "allow"\n';
+            if (method) {
+                rule += '\t/method "' + method.toUpperCase() + '"\n';
+            }
+            if (path) {
+                rule += '\t/path "' + path + '"\n';
+            }
+            if (url) {
+                rule += '\t/url "' + url + '"\n';
+            }
+            if (extension) {
+                rule += '\t/extension "' + extension + '"\n';
+            }
+            if (selector) {
+                if (selector.length > 1) {
+                    rule += "\t/selectors '(" + selector.join("|") + ")'\n";
+                } else {
+                    rule += '\t/selectors "' + selector + '"\n';
+                }
+            }
+            if (suffix) {
+                rule += '\t/suffix "' + suffix + '"\n';
+            }
+            if (query) {
+                var newQueries = [];
+                for (var i = 0; i < query.length; i++) {
+                    var qry = query[i];
+                    var keyValue = qry.split("=");
+                    var newQuery = keyValue[0] + "=.*"
+                    newQueries.push(newQuery);
+                }
+                if (query.length > 1) {
+                    rule += "\t/query '(" + newQueries.join("|") + ")'\n";
+                } else {
+                    rule += '\t/query "' + newQueries[0].replace("=.*", "=*") + '"\n';
+                }
+            }
+            rule += "}\n"
+            return rule;
+        }
+
+        function generate() {
+            var textarealines = $('#requestsbox').val().split(/\n/);
+            var generated_rules = "";
+            for (var i = 0; i < textarealines.length; i++) {
+                if (/\S/.test(textarealines[i])) {
+                    var extension = getExtension(textarealines[i]);
+                    var method = getMethod(textarealines[i]);
+                    var path = getPath(textarealines[i], extension);
+                    var selectors = getSelectors(textarealines[i], extension);
+                    var suffix = getSuffix(textarealines[i], extension);
+                    var query = getQuery(textarealines[i], extension);
+                    var url = getUrl(textarealines[i]);
+
+                    if (selectors)
+                        url = url.replaceAll(selectors.join("."), "*");
+                    generated_rules += generateRule(i, method, path, url, extension, selectors, suffix, query);
+                }
+            }
+            $('#rulesbox').val(generated_rules);
+        }
+
+        $(document).ready(function () {
+            $("#requestsbox").on('change keyup paste', function () {
+                generate();
+            });
+        });
+    </script>
+    <style>
+        #matcher-legend td {
+            background: black;
+            padding: 5px;
+            width: 20px;
+        }
+
+        #main-title {
+            border-radius: 25px;
+            border-style: solid;
+            border-color: red;
+            color: white;
+            padding: 5px;
+            text-align: center;
+            width: 50%;
+            border-width: thick;
+            background-color: white;
+        }
+
+        #main-title h1 {
+            margin-top: -5px;
+            font-size: 50px;
+            font: bold arial, sans-serif;
+            background-color: #565656;
+            color: transparent;
+            font-weight: bold;
+            text-shadow: 2px 2px 3px rgba(255, 255, 255, 0.5);
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+        }
+
+        #main-title img {
+            max-height: 50px;
+            display: inline;
+        }
+
+        #main-title p {
+            margin-top: -60px;
+            color: black;
+        }
+
+        body {
+            background: #fff;
+        }
+
+        textarea {
+            width: 99%;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-family: 'Lato', sans-serif;
+            font-size: 35px;
+            font-weight: 300;
+            line-height: 58px;
+            margin: 0 0 58px;
+        }
+
+        p {
+            color: #adb7bd;
+            font-family: 'Lucida Sans', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 26px;
+            text-indent: 30px;
+            margin: 0;
+        }
+
+        a {
+            color: red;
+            text-decoration: underline;
+        }
+
+        a:hover {
+            color: #ffffff;
+        }
+
+        .method {
+            color: green;
+        }
+
+        .glob {
+            color: red;
+        }
+
+        .url {
+            color: blue;
+        }
+
+        .path {
+            color: purple;
+        }
+
+        .selectors {
+            color: yellow;
+        }
+
+        .extension {
+            color: aqua;
+        }
+
+        .suffix {
+            color: grey;
+        }
+
+        .query {
+            color: pink;
+        }
+
+        textarea {
+            box-shadow: inset 0 0 5px black;
+            padding: 5px;
+            background: #2d2d2d;
+            color: #ccc;
+            font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+            text-align: left;
+            white-space: pre;
+            word-spacing: normal;
+            word-break: normal;
+            word-wrap: normal;
+            line-height: 1.5;
+            tab-size: 4;
+            hyphens: none;
+        }
+
+        button {
+            background-color: #ffffff;
+            border: 2px black solid;
+            padding: 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <center>
+        <div id="main-title">
+            <img src="https://www.adobe.com/content/dam/cc/icons/Adobe_Corporate_Horizontal_Red_HEX.svg"></img>
+            <h1>Dispatcher Filter Fiddler</h1>
+            <p>
+                A play area to put in a request line and auto-generate a filter to allow it
+            </p>
+        </div>
+    </center>
+    <!-- <table id="matcher-legend">
+        <tr>
+            <th colspan="8">Matcher Legend</th>
+        </tr>
+        <tr>
+            <td class='method'><b>/method</b></td>
+            <td class='glob'><b>/glob</b></td>
+            <td class='url'><b>/url</b></td>
+            <td class='path'><b>/path</b></td>
+            <td class='selectors'><b>/selectors</b></td>
+            <td class='extension'><b>/extension</b></td>
+            <td class='suffix'><b>/suffix</b></td>
+            <td class='query'><b>/query</b></td>
+        </tr>
+    </table> -->
+    Requests:
+    <textarea id="requestsbox" placeholder="Input your request URI's here i.e. GET /content/home.html" rows="20"
+        cols="150"></textarea>
+    Generated Rules:
+    <textarea id="rulesbox" placeholder="Results will show up here" rows="20" cols="150"></textarea>
+    <button onclick="copy()">Copy to Clipboard</button>
+</body>
+
+</html>
