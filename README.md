@@ -10,4 +10,4 @@ Open dispatcher-filter-fiddler.html in your favorite browser and either type in 
 
 # Demo
 
-[![Demo GIF][https://raw.githubusercontent.com/calebpryor/aem-dispatcher-filter-fiddler/master/dispatcher-filter-fiddler.gif]]
+![Demo GIF](https://raw.githubusercontent.com/calebpryor/aem-dispatcher-filter-fiddler/main/dispatcher-filter-fiddler.gif)
