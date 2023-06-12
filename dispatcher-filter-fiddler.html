@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Filter Fiddler</title>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"
@@ -209,15 +208,8 @@
         }
 
         #main-title {
-            border-radius: 25px;
-            border-style: solid;
-            border-color: red;
-            color: white;
             padding: 5px;
             text-align: center;
-            width: 50%;
-            border-width: thick;
-            background-color: white;
         }
 
         #main-title h1 {
@@ -231,6 +223,7 @@
             -webkit-background-clip: text;
             -moz-background-clip: text;
             background-clip: text;
+            padding-left: 15px;
         }
 
         #main-title img {
@@ -313,7 +306,7 @@
         textarea {
             box-shadow: inset 0 0 5px black;
             padding: 5px;
-            background: #2d2d2d;
+            background: #1d1f21;
             color: #ccc;
             font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
             text-align: left;
@@ -337,40 +330,84 @@
             font-weight: bold;
             border-radius: 20px;
         }
+
+        #adobe-logo-square {
+            background-color: #df2624;
+            padding: 10px;
+            width: 60px;
+            height: 50px;
+        }
+
+        #adobe-logo {
+            height: 50px;
+            overflow: hidden;
+            position: relative;
+            width: 58px;
+        }
+
+        #adobe-logo * {
+            position: absolute;
+        }
+
+        .adobe-logo-part1,
+        .adobe-logo-part2,
+        .adobe-logo-part3 {
+            background: #fff;
+        }
+
+        .adobe-logo-part1 {
+            height: 61px;
+            left: 11px;
+            top: -5px;
+            transform: rotate(23deg);
+            width: 14px;
+        }
+
+        .adobe-logo-part2 {
+            height: 61px;
+            left: 32px;
+            top: -5px;
+            transform: rotate(-23deg);
+            width: 14px;
+        }
+
+        .adobe-logo-part3 {
+            height: 10px;
+            left: 12px;
+            top: 40px;
+            transform: skewx(22deg);
+            width: 18px;
+        }
     </style>
 </head>
 
 <body>
-    <center>
-        <div id="main-title">
-            <img src="https://www.adobe.com/content/dam/cc/icons/Adobe_Corporate_Horizontal_Red_HEX.svg"></img>
-            <h1>Dispatcher Filter Fiddler</h1>
-            <p>
-                A play area to put in a request line and auto-generate a filter to allow it
-            </p>
-        </div>
-    </center>
-    <!-- <table id="matcher-legend">
+    <table>
         <tr>
-            <th colspan="8">Matcher Legend</th>
+            <td>
+                <div id="adobe-logo-square">
+                    <div id="adobe-logo">
+                        <div class="adobe-logo-part1"></div>
+                        <div class="adobe-logo-part2"></div>
+                        <div class="adobe-logo-part3"></div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div id="main-title">
+                    <h1>Dispatcher Filter Fiddler</h1>
+                    <p>
+                        A play area to put in a request line and auto-generate a filter to allow it
+                    </p>
+                </div>
+            </td>
         </tr>
-        <tr>
-            <td class='method'><b>/method</b></td>
-            <td class='glob'><b>/glob</b></td>
-            <td class='url'><b>/url</b></td>
-            <td class='path'><b>/path</b></td>
-            <td class='selectors'><b>/selectors</b></td>
-            <td class='extension'><b>/extension</b></td>
-            <td class='suffix'><b>/suffix</b></td>
-            <td class='query'><b>/query</b></td>
-        </tr>
-    </table> -->
+    </table>
+    
     Requests:
-    <textarea id="requestsbox" placeholder="Input your request URI's here i.e. GET /content/home.html" rows="20"
-        cols="150"></textarea>
+    <textarea id="requestsbox" placeholder="Input your request URI's here i.e. GET /content/home.html" rows="20" cols="150"></textarea>
     Generated Rules:
     <textarea id="rulesbox" placeholder="Results will show up here" rows="20" cols="150"></textarea>
     <button onclick="copy()">Copy to Clipboard</button>
 </body>
-
 </html>
