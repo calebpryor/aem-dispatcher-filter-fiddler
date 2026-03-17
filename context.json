@@ -1,0 +1,145 @@
+{
+  "project": {
+    "name": "AEM Dispatcher Filter Fiddler",
+    "type": "single-page-application",
+    "stack": ["HTML", "CSS", "JavaScript", "jQuery"],
+    "description": "A browser-based learning and prototyping tool that accepts raw HTTP request lines and auto-generates AEM Dispatcher module filter rules. Intended as a syntax reference and educational aid, not a production rule generator.",
+    "audience": "Systems integrators building AEM Dispatcher farm filter configurations",
+    "entrypoint": "dispatcher-filter-fiddler.html"
+  },
+  "purpose": {
+    "primary_goal": "Help systems integrators understand and correctly author AEM Dispatcher /filter rules by demonstrating how to use all available matchers together rather than relying on overly-broad /glob allow rules.",
+    "learning_outcomes": [
+      "Understand the syntax and available matchers for AEM Dispatcher filter rules",
+      "See how a real HTTP request maps to specific filter matchers: /method, /path, /url, /extension, /selectors, /suffix, /query",
+      "Understand the security implications of /glob allow rules vs. specific matcher-based rules",
+      "Understand the difference between single-quoted (regex) and double-quoted (glob) matcher values"
+    ],
+    "disclaimer": "This is a learning tool. Generated rules are starting-point syntax examples. Users must review, refine, and test rules before using them in production."
+  },
+  "domain_knowledge": {
+    "aem_dispatcher": {
+      "description": "Apache httpd module that acts as a caching and load-balancing reverse proxy in front of AEM (Adobe Experience Manager) publish instances. Filter rules control which HTTP requests are forwarded to AEM.",
+      "filter_rule_structure": {
+        "description": "Each filter rule is a named block inside /filter { } in the dispatcher.any farm file.",
+        "example": "/0001 {\n  /type \"allow\"\n  /method \"GET\"\n  /path \"/content/site/*\"\n  /url \"/content/site/*\"\n  /extension \"html\"\n}"
+      },
+      "matchers": {
+        "/type": {
+          "values": ["allow", "deny"],
+          "description": "Whether the rule permits or blocks matching requests. Best practice is a base deny-all rule followed by specific allow rules."
+        },
+        "/method": {
+          "description": "Matches the HTTP method (GET, POST, HEAD, etc.). Use double-quoted glob or single-quoted regex.",
+          "example_glob": "\"GET\"",
+          "example_regex": "'(GET|HEAD)'"
+        },
+        "/url": {
+          "description": "Matches the full URL path including selectors, extension, and suffix (everything before the query string). More permissive than /path + /extension combined.",
+          "example": "\"/content/site/*\""
+        },
+        "/path": {
+          "description": "Matches only the resource path segment (before selectors and extension). More precise than /url alone.",
+          "example": "\"/content/dam/*\""
+        },
+        "/extension": {
+          "description": "Matches the file extension without the leading dot.",
+          "example_single_extension": "\"html\"",
+          "example_multiple_regex": "'(html|json|xml)'"
+        },
+        "/selectors": {
+          "description": "Matches AEM selectors (the dot-separated segments between resource name and extension). Required to restrict which Sling renderers are accessible.",
+          "example_single": "\"model\"",
+          "example_multiple_regex": "'(model|data|print)'"
+        },
+        "/suffix": {
+          "description": "Matches the URL suffix (path segment after the extension, prefixed with a slash). Used for Sling URL suffix patterns.",
+          "example": "\"/some/suffix/*\""
+        },
+        "/query": {
+          "description": "Matches query string parameters. Single-valued uses glob; multi-valued uses regex alternation.",
+          "example_single_glob": "\"key=*\"",
+          "example_multiple_regex": "'(key1=.*|key2=.*)'"
+        },
+        "/glob": {
+          "description": "DEPRECATED for /allow rules. Matches the entire request URI with a glob pattern. Extremely dangerous to use with /type allow because a single rule can inadvertently allow unintended paths.",
+          "security_warning": "NEVER use /glob with /type allow. It cannot restrict by extension, selectors, or method simultaneously and makes it trivial to accidentally expose admin endpoints or sensitive content paths."
+        }
+      },
+      "quoting_semantics": {
+        "double_quotes": {
+          "syntax": "\"value\"",
+          "matching": "Glob pattern matching. Wildcards: * matches any sequence within a path segment, ** matches across segments.",
+          "example": "\"/content/dam/*\""
+        },
+        "single_quotes": {
+          "syntax": "'value'",
+          "matching": "POSIX Extended Regular Expression (ERE) matching. Full regex syntax available.",
+          "example": "'(html|json|xml)'"
+        }
+      },
+      "security_best_practices": [
+        "Always start with a deny-all rule: /0001 { /type \"deny\" /url \"*\" }",
+        "Use the most specific combination of matchers possible for each allow rule",
+        "Never use /glob with /type allow",
+        "Always specify /method to limit to necessary HTTP verbs",
+        "Restrict /extension to prevent accessing internal Sling renderers (e.g., .infinity.json, .tidy.json)",
+        "Restrict /selectors to only those required by the application",
+        "Use /path together with /url for maximum specificity",
+        "Rule numbers are significant: rules are evaluated in order; lower numbers evaluated first"
+      ],
+      "rule_numbering_convention": {
+        "description": "Rules are prefixed with /0XXX where XXX is a zero-padded number. Evaluation order matches numbering order.",
+        "this_tool_base_number": 3000,
+        "common_conventions": {
+          "0001": "Base deny-all rule",
+          "0001-0099": "Global deny rules",
+          "0100-0999": "Infrastructure and health check allows",
+          "1000-2999": "Content allows",
+          "3000+": "Application-specific allows (range used by this tool)"
+        }
+      }
+    }
+  },
+  "tool_behavior": {
+    "input": "One or more raw HTTP request lines, one per line, in the format: METHOD /path/resource.selector.extension/suffix?query=value",
+    "output": "One AEM Dispatcher filter rule block per non-empty input line, numbered sequentially starting at /03000",
+    "parsing_logic": {
+      "extension": "Extracted via regex from the URL before a slash (suffix) or at end of path before query string",
+      "method": "First whitespace-terminated token on the line",
+      "path": "Directory portion of the URL up to the resource name, with trailing wildcard appended",
+      "selectors": "Dot-separated segments between resource name and extension",
+      "suffix": "URL segment after the extension and before the query string",
+      "query": "Parameters after ? split on & into individual key=value pairs; values replaced with wildcard"
+    },
+    "quoting_decisions": {
+      "single_selector": "Double-quoted glob: \"/selector\"",
+      "multiple_selectors": "Single-quoted regex alternation: '(sel1|sel2)'",
+      "single_query_param": "Double-quoted glob: \"key=*\"",
+      "multiple_query_params": "Single-quoted regex alternation: '(key1=.*|key2=.*)'"
+    },
+    "live_generation": "Rules regenerate on every keystroke/paste event in the input textarea"
+  },
+  "ui": {
+    "layout": "Two stacked textareas: top for HTTP request input, bottom for generated dispatcher rules",
+    "controls": ["Copy to Clipboard button"],
+    "color_legend": {
+      "method": "green",
+      "glob": "red (to signal danger)",
+      "url": "blue",
+      "path": "purple",
+      "selectors": "yellow",
+      "extension": "aqua",
+      "suffix": "grey",
+      "query": "pink"
+    }
+  },
+  "known_limitations": [
+    "Generated rules are starting-point examples only — real rules need manual review and testing",
+    "The tool does not validate whether a generated rule is secure or complete",
+    "Selector and query wildcard substitution is heuristic-based and may not match all edge cases",
+    "No support for /clientheaders or /clientip matchers",
+    "Rule deduplication and merging must be done manually",
+    "URL wildcard appending (*) in /url and /path may be overly broad for some use cases"
+  ]
+}
