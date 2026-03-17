@@ -1,413 +1,807 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Filter Fiddler</title>
-    <script src="https://code.jquery.com/jquery-3.6.1.min.js"
-        integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
-    <script>
-        function copy() {
-            let rulesboxtextarea = document.getElementById("rulesbox");
-            rulesboxtextarea.select();
-            document.execCommand("copy");
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispatcher Filter Fiddler</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:              #0d1117;
+            --surface:         #161b22;
+            --surface-raised:  #21262d;
+            --border:          #30363d;
+            --text:            #e6edf3;
+            --text-muted:      #8b949e;
+            --adobe:           #eb5c53;
+            --c-method:        #3fb950;
+            --c-url:           #58a6ff;
+            --c-path:          #bc8cff;
+            --c-selectors:     #e3b341;
+            --c-extension:     #39c5cf;
+            --c-suffix:        #8b949e;
+            --c-query:         #f778ba;
+            --c-glob:          #eb5c53;
         }
 
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        #adobe-logo-square {
+            background: var(--adobe);
+            border-radius: 4px;
+            padding: 10px;
+            width: 48px;
+            height: 40px;
+            flex-shrink: 0;
+        }
+
+        #adobe-logo {
+            height: 20px;
+            overflow: hidden;
+            position: relative;
+            width: 28px;
+        }
+
+        #adobe-logo * { position: absolute; }
+
+        .adobe-logo-part1,
+        .adobe-logo-part2,
+        .adobe-logo-part3 { background: #fff; }
+
+        .adobe-logo-part1 { height: 30px; left: 4px;  top: -3px; transform: rotate(23deg);  width: 7px; }
+        .adobe-logo-part2 { height: 30px; left: 17px; top: -3px; transform: rotate(-23deg); width: 7px; }
+        .adobe-logo-part3 { height: 5px;  left: 5px;  top: 18px; transform: skewX(22deg);   width: 10px; }
+
+        .header-text h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .header-text p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .header-text code {
+            font-family: Consolas, Monaco, monospace;
+            background: var(--surface-raised);
+            padding: 0 4px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        /* ── Main ── */
+        main {
+            flex: 1;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ── Panes ── */
+        .pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .pane-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        textarea {
+            width: 100%;
+            height: 260px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, Monaco, 'Andale Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        textarea:focus {
+            border-color: var(--c-url);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        textarea::placeholder {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* ── Copy button ── */
+        .btn-copy {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--surface-raised);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+
+        .btn-copy:hover { background: #2d333b; border-color: #6e7681; }
+
+        .btn-copy.copied { color: var(--c-method); border-color: var(--c-method); }
+
+        /* ── Legend ── */
+        .legend {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 16px;
+        }
+
+        .legend-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: Consolas, Monaco, monospace;
+            border: 1px solid currentColor;
+            opacity: 0.85;
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.15s, background 0.15s;
+        }
+
+        .badge:hover  { opacity: 1; }
+        .badge.active { opacity: 1; background: rgba(255,255,255,0.07); }
+
+        .badge::before { content: '/'; opacity: 0.5; }
+
+        .badge.method    { color: var(--c-method); }
+        .badge.url       { color: var(--c-url); }
+        .badge.path      { color: var(--c-path); }
+        .badge.selectors { color: var(--c-selectors); }
+        .badge.extension { color: var(--c-extension); }
+        .badge.suffix    { color: var(--c-suffix); }
+        .badge.query     { color: var(--c-query); }
+        .badge.glob      { color: var(--c-glob); }
+
+        /* ── Matcher detail panel ── */
+        #matcher-detail {
+            display: none;
+            margin-top: 12px;
+            padding: 12px 14px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        #matcher-detail.visible { display: block; }
+
+        .detail-name {
+            font-family: Consolas, Monaco, monospace;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .detail-name::before { content: '/'; opacity: 0.5; }
+
+        .detail-desc {
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .detail-examples {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .detail-example {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        .detail-example-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            padding-top: 1px;
+        }
+
+        .detail-example-code {
+            font-family: Consolas, Monaco, monospace;
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .quoting-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .quoting-hint code {
+            font-family: Consolas, Monaco, monospace;
+            background: var(--surface-raised);
+            padding: 0 3px;
+            border-radius: 3px;
+        }
+
+        /* ── Security notice ── */
+        .security-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: rgba(235, 92, 83, 0.08);
+            border: 1px solid rgba(235, 92, 83, 0.3);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #ffa198;
+            line-height: 1.5;
+        }
+
+        .security-notice .icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+        .security-notice code {
+            font-family: Consolas, Monaco, monospace;
+            background: rgba(255, 161, 152, 0.15);
+            padding: 0 4px;
+            border-radius: 3px;
+        }
+
+        /* ── Security insights ── */
+        .security-insights {
+            background: rgba(88, 166, 255, 0.05);
+            border: 1px solid rgba(88, 166, 255, 0.2);
+            border-radius: 6px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .security-insights-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #58a6ff;
+            margin-bottom: 8px;
+        }
+
+        .security-insights ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding: 0;
+        }
+
+        .security-insights li {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .security-insights li::before {
+            content: '›';
+            color: #58a6ff;
+            font-size: 14px;
+            line-height: 1.4;
+            flex-shrink: 0;
+        }
+
+        /* ── Footer ── */
+        footer {
+            padding: 12px 24px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div id="adobe-logo-square">
+            <div id="adobe-logo">
+                <div class="adobe-logo-part1"></div>
+                <div class="adobe-logo-part2"></div>
+                <div class="adobe-logo-part3"></div>
+            </div>
+        </div>
+        <div class="header-text">
+            <h1>Dispatcher Filter Fiddler</h1>
+            <p>Paste HTTP request lines to auto-generate AEM Dispatcher <code>/filter</code> rules</p>
+        </div>
+    </header>
+
+    <main>
+        <div>
+            <div class="pane-header">
+                <span class="pane-label">HTTP Requests</span>
+            </div>
+            <textarea id="requestsbox"
+                placeholder="Input request lines here, one per line&#10;&#10;GET /content/home.html&#10;GET /content/dam/images/hero.jpg&#10;GET /content/site/page.model.json"></textarea>
+        </div>
+
+        <div>
+            <div class="pane-header">
+                <span class="pane-label">Generated Filter Rules</span>
+                <button class="btn-copy" id="copyBtn" onclick="copy()">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/>
+                        <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <textarea id="rulesbox" placeholder="Generated rules will appear here" readonly></textarea>
+        </div>
+
+        <div class="legend">
+            <div class="legend-title">Matcher Reference — click a matcher to expand</div>
+            <div class="legend-items">
+                <span class="badge method"    data-matcher="method"    onclick="toggleMatcher(this)">method</span>
+                <span class="badge url"       data-matcher="url"       onclick="toggleMatcher(this)">url</span>
+                <span class="badge path"      data-matcher="path"      onclick="toggleMatcher(this)">path</span>
+                <span class="badge selectors" data-matcher="selectors" onclick="toggleMatcher(this)">selectors</span>
+                <span class="badge extension" data-matcher="extension" onclick="toggleMatcher(this)">extension</span>
+                <span class="badge suffix"    data-matcher="suffix"    onclick="toggleMatcher(this)">suffix</span>
+                <span class="badge query"     data-matcher="query"     onclick="toggleMatcher(this)">query</span>
+                <span class="quoting-hint">
+                    &nbsp;—&nbsp; <code>"value"</code> glob &nbsp;·&nbsp; <code>'value'</code> regex
+                </span>
+            </div>
+            <div id="matcher-detail"></div>
+        </div>
+
+        <div class="security-notice">
+            <span class="icon">⚠</span>
+            <span>
+                <strong>Security:</strong> Never use <code>/glob</code> with <code>/type "allow"</code>.
+                It cannot restrict by method, extension, or selectors simultaneously and can inadvertently
+                expose admin endpoints or sensitive paths. Use specific matchers for every allow rule.
+            </span>
+        </div>
+
+        <div class="security-insights">
+            <div class="security-insights-title">Security Insights</div>
+            <ul>
+                <li>Using fewer than 2 matchers per filter is a strong sign of a poorly written, insecure rule. Bypassing one matcher is far easier than bypassing many — the more specific matchers you combine, the harder the rule is to circumvent.</li>
+                <li>Dispatcher filters won't stop Apache httpd from serving files directly from the document root or cache. A blocked request never reaching AEM doesn't mean a previously cached file won't be served. Always clear the cache when testing filter changes.</li>
+                <li>When the dispatcher blocks a request it responds with a <code>404 Not Found</code>, not a <code>403 Forbidden</code> — it signals the resource doesn't exist rather than that access is denied.</li>
+                <li>Dispatcher filters are not a substitute for a Web Application Firewall. They define which content to expose, not how to fight malicious traffic. Use ModSecurity or a cloud WAF (AWS WAF, Cloudflare, etc.) alongside your dispatcher rules for real threat protection.</li>
+            </ul>
+        </div>
+    </main>
+
+    <footer>
+        A learning tool — generated rules are syntax examples only. Review, refine, and test before using in production.
+    </footer>
+
+    <script>
+        // ── Copy to clipboard ──────────────────────────────────────────────
+        function copy() {
+            var text = document.getElementById("rulesbox").value;
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(function () {
+                var btn = document.getElementById("copyBtn");
+                btn.classList.add("copied");
+                btn.innerHTML =
+                    '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">' +
+                    '<path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>' +
+                    '</svg> Copied!';
+                setTimeout(function () {
+                    btn.classList.remove("copied");
+                    btn.innerHTML =
+                        '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">' +
+                        '<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/>' +
+                        '<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/>' +
+                        '</svg> Copy';
+                }, 2000);
+            });
+        }
+
+        // ── URL parsing helpers ────────────────────────────────────────────
         function getExtension(requestString) {
-            let extensionFinal;
-            let extensionRegex1 = /\.(?<extension>[^.][A-z0-9]+)\//;
-            let extension = extensionRegex1.exec(requestString);
-            if (extension) {
-                extensionFinal = extension["groups"]['extension'];
+            var ext;
+            var m = /\.(?<extension>[^.][A-Za-z0-9]+)\//.exec(requestString);
+            if (m) {
+                ext = m.groups.extension;
             } else {
-                let extensionRegex2 = /\.(?<extension>[A-z]+)(\?.*)?$/;
-                let extension = extensionRegex2.exec(requestString);
-                if (extension) {
-                    extensionFinal = extension["groups"]['extension'];
-                }
+                m = /\.(?<extension>[A-Za-z0-9]+)(\?.*)?$/.exec(requestString);
+                if (m) ext = m.groups.extension;
             }
-            return extensionFinal;
+            return ext;
         }
 
         function getMethod(requestString) {
-            let methodFinal;
-            let methodRegex = /(?<method>[A-z]+\ )/;
-            let method = methodRegex.exec(requestString);
-            if (method) {
-                methodFinal = method["groups"]['method'].trim();
-            }
-            return methodFinal;
-        }
-
-        function getPath(requestString, extension) {
-            let pathFinal;
-            let requestStr = requestString;
-            if (extension) {
-                let splitRequestString = splitOnExtension(requestStr, extension);
-                requestStr = splitRequestString[0];
-            }
-            let postPathRegex = /(?<method>[A-z]+\ )?(?<path>.*\/)(?<suffix>.+)$/;
-            let postPath = postPathRegex.exec(requestStr);
-            pathFinal = postPath["groups"]['path'].trim();
-            return pathFinal + "*";
-        }
-
-        function getSelectors(requestString, extension) {
-            let selectorsFinal;
-            if (extension) {
-                let splitRequestString = splitOnExtension(requestString, extension);
-                let preExtension = splitRequestString[0];
-                if (preExtension) {
-                    let selectorsRegex = /(?<selectors>[\.].*[\.])/;
-                    let selectors = selectorsRegex.exec(preExtension);
-                    if (selectors) {
-                        selectors = selectors["groups"]['selectors'].trim();
-                        let selectorArray = selectors.split(".")
-                        for (var i = 0; i < selectorArray.length; i++) {
-                            if (selectorArray[i]) {
-                                if (!selectorsFinal) {
-                                    selectorsFinal = [];
-                                }
-                                selectorsFinal.push(selectorArray[i]);
-                            }
-                        }
-                    }
-                }
-            }
-            return selectorsFinal;
-        }
-
-        function getSuffix(requestString, extension) {
-            let suffixFinal;
-            if (extension) {
-                let splitRequestString = splitOnExtension(requestString, extension);
-                let suffixMiddle = splitRequestString[1];
-                if (suffixMiddle.indexOf("?") !== -1) {
-                    suffixFinal = splitRequestString[1].split("?")[0];
-                } else {
-                    suffixFinal = splitRequestString[1];
-                }
-            }
-            return suffixFinal;
-        }
-
-        function getQuery(requestString, extension) {
-            let queryFinal;
-            if (extension) {
-                let splitRequestString = splitOnExtension(requestString, extension);
-                suffixMiddle = splitRequestString[1];
-                if (suffixMiddle.indexOf("?") !== -1) {
-                    let queryMiddle = splitRequestString[1].split("?")[1];
-                    if (queryMiddle.indexOf("&") !== -1) {
-                        queryFinal = queryMiddle.split("&");
-                    } else {
-                        queryFinal = [];
-                        queryFinal.push(queryMiddle);
-                    }
-                }
-            }
-            return queryFinal;
-        }
-
-        function getUrl(requestString) {
-            let urlFinal;
-            let method = getMethod(requestString);
-            let urlMiddle = requestString.replace(method, "").trim();
-            if (urlMiddle.indexOf("?")) {
-                urlFinal = urlMiddle.split("?")[0];
-            } else {
-                urlFinal = urlMiddle;
-            }
-            return urlFinal + "*";
+            var m = /^(?<method>[A-Za-z]+)\s/.exec(requestString);
+            return m ? m.groups.method.trim() : undefined;
         }
 
         function splitOnExtension(requestString, extension) {
-            let splitRequest
-            if (extension) {
-                let splitCharacter = "    ";
-                let tempRequestString = requestString.replace(extension, splitCharacter);
-                splitRequest = tempRequestString.split(splitCharacter);
-            }
-            return splitRequest;
+            if (!extension) return undefined;
+            var marker = "    ";
+            return requestString.replace(extension, marker).split(marker);
         }
 
-        function generateRule(number, method, path, url, extension, selector, suffix, query) {
-            var baseRuleNumber = 3000;
-            let rule = "/0" + (baseRuleNumber + number) + " {\n";
-            rule += '\t/type "allow"\n';
-            if (method) {
-                rule += '\t/method "' + method.toUpperCase() + '"\n';
-            }
-            if (path) {
-                rule += '\t/path "' + path + '"\n';
-            }
-            if (url) {
-                rule += '\t/url "' + url + '"\n';
-            }
+        function getPath(requestString, extension) {
+            var str = requestString;
             if (extension) {
-                rule += '\t/extension "' + extension + '"\n';
+                str = splitOnExtension(str, extension)[0];
             }
-            if (selector) {
-                if (selector.length > 1) {
-                    rule += "\t/selectors '(" + selector.join("|") + ")'\n";
+            var m = /(?:[A-Za-z]+\s)?(?<path>.*\/)(?<resource>.+)$/.exec(str);
+            return m ? m.groups.path.trim() + "*" : undefined;
+        }
+
+        function getSelectors(requestString, extension) {
+            if (!extension) return undefined;
+            var pre = splitOnExtension(requestString, extension)[0];
+            if (!pre) return undefined;
+            var m = /(?<selectors>\.[^/]*\.)/.exec(pre);
+            if (!m) return undefined;
+            return m.groups.selectors.split(".").filter(function (s) { return s.length > 0; });
+        }
+
+        function getSuffix(requestString, extension) {
+            if (!extension) return undefined;
+            var parts = splitOnExtension(requestString, extension);
+            var after = parts[1];
+            if (!after) return undefined;
+            return after.indexOf("?") !== -1 ? after.split("?")[0] : after;
+        }
+
+        function getQuery(requestString, extension) {
+            if (!extension) return undefined;
+            var parts = splitOnExtension(requestString, extension);
+            var after = parts[1];
+            if (!after || after.indexOf("?") === -1) return undefined;
+            var qs = after.split("?")[1];
+            return qs.indexOf("&") !== -1 ? qs.split("&") : [qs];
+        }
+
+        function getUrl(requestString) {
+            var method = getMethod(requestString);
+            var url = method ? requestString.replace(method, "").trim() : requestString.trim();
+            return (url.indexOf("?") !== -1 ? url.split("?")[0] : url) + "*";
+        }
+
+        // ── Descriptive rule ID generation ─────────────────────────────────
+        function generateRuleId(path, extension, selectors, usedIds) {
+            var MAX_BASE = 29; // reserves 3 chars for "_N" dedup suffix → total ≤ 32
+
+            // Build path segment list from the post-getPath() value (ends in /*)
+            var pathParts = [];
+            if (path) {
+                var clean = path.replace(/\/\*$/, "").replace(/^\//, "");
+                pathParts = clean.split("/")
+                    .filter(function (s) { return s && s !== "*"; })
+                    .map(function (s) { return s.toUpperCase().replace(/[^A-Z0-9]/g, ""); })
+                    .filter(function (s) { return s.length > 0; });
+            }
+
+            var selectorParts = selectors
+                ? selectors.map(function (s) { return s.toUpperCase().replace(/[^A-Z0-9]/g, ""); })
+                : [];
+
+            var extPart = extension
+                ? extension.toUpperCase().replace(/[^A-Z0-9]/g, "")
+                : "";
+
+            function buildId(pp, sp, ep) {
+                var parts = ["PUB", "ALLOW"].concat(pp).concat(sp);
+                if (ep) parts.push(ep);
+                return "/" + parts.join("_");
+            }
+
+            // Truncate path segments from the right until base fits in MAX_BASE chars
+            var pp = pathParts.slice();
+            var sp = selectorParts.slice();
+            var candidate = buildId(pp, sp, extPart);
+
+            while (candidate.length > MAX_BASE) {
+                if (pp.length > 0) {
+                    pp.pop();
+                } else if (sp.length > 0) {
+                    sp.pop();
                 } else {
-                    rule += '\t/selectors "' + selector + '"\n';
+                    break; // floor: /PUB_ALLOW_{EXT}
+                }
+                candidate = buildId(pp, sp, extPart);
+            }
+
+            // Deduplicate within the current batch (counter capped at 9)
+            if (!usedIds[candidate]) {
+                usedIds[candidate] = 1;
+                return candidate;
+            } else {
+                usedIds[candidate] = Math.min(usedIds[candidate] + 1, 9);
+                return candidate + "_" + usedIds[candidate];
+            }
+        }
+
+        // ── Rule block builder ─────────────────────────────────────────────
+        // methodValue should already be fully formatted, e.g. '"GET"' or "'(GET|HEAD)'"
+        function generateRule(ruleId, methodValue, path, url, extension, selectors, suffix, query) {
+            var rule = ruleId + " {\n";
+            rule += '\t/type "allow"\n';
+            if (methodValue) rule += '\t/method ' + methodValue + '\n';
+            if (path)      rule += '\t/path "' + path + '"\n';
+            if (url)       rule += '\t/url "' + url + '"\n';
+            if (extension) rule += '\t/extension "' + extension + '"\n';
+            if (selectors) {
+                if (selectors.length > 1) {
+                    rule += "\t/selectors '(" + selectors.join("|") + ")'\n";
+                } else {
+                    rule += '\t/selectors "' + selectors[0] + '"\n';
                 }
             }
-            if (suffix) {
-                rule += '\t/suffix "' + suffix + '"\n';
-            }
+            if (suffix) rule += '\t/suffix "' + suffix + '"\n';
             if (query) {
-                var newQueries = [];
-                for (var i = 0; i < query.length; i++) {
-                    var qry = query[i];
-                    var keyValue = qry.split("=");
-                    var newQuery = keyValue[0] + "=.*"
-                    newQueries.push(newQuery);
-                }
-                if (query.length > 1) {
+                var newQueries = query.map(function (q) {
+                    return q.split("=")[0] + "=.*";
+                });
+                if (newQueries.length > 1) {
                     rule += "\t/query '(" + newQueries.join("|") + ")'\n";
                 } else {
                     rule += '\t/query "' + newQueries[0].replace("=.*", "=*") + '"\n';
                 }
             }
-            rule += "}\n"
+            rule += "}\n\n";
             return rule;
         }
 
+        // ── Main generator ─────────────────────────────────────────────────
         function generate() {
-            var textarealines = $('#requestsbox').val().split(/\n/);
-            var generated_rules = "";
-            for (var i = 0; i < textarealines.length; i++) {
-                if (/\S/.test(textarealines[i])) {
-                    var extension = getExtension(textarealines[i]);
-                    var method = getMethod(textarealines[i]);
-                    var path = getPath(textarealines[i], extension);
-                    var selectors = getSelectors(textarealines[i], extension);
-                    var suffix = getSuffix(textarealines[i], extension);
-                    var query = getQuery(textarealines[i], extension);
-                    var url = getUrl(textarealines[i]);
+            var lines = document.getElementById("requestsbox").value.split(/\n/);
+            var output = "";
+            var usedIds = {};
 
-                    if (selectors)
-                        url = url.replaceAll(selectors.join("."), "*");
-                    generated_rules += generateRule(i, method, path, url, extension, selectors, suffix, query);
+            // ── Step 1: parse all non-empty lines into structured objects ──
+            var parsed = [];
+            for (var i = 0; i < lines.length; i++) {
+                if (!/\S/.test(lines[i])) continue;
+
+                var ext       = getExtension(lines[i]);
+                var method    = getMethod(lines[i]);
+                var path      = getPath(lines[i], ext);
+                var selectors = getSelectors(lines[i], ext);
+                var suffix    = getSuffix(lines[i], ext);
+                var query     = getQuery(lines[i], ext);
+                var url       = getUrl(lines[i]);
+
+                if (selectors) {
+                    url = url.split(selectors.join(".")).join("*");
+                }
+
+                parsed.push({
+                    method:    method,
+                    path:      path,
+                    url:       url,
+                    ext:       ext,
+                    selectors: selectors,
+                    suffix:    suffix,
+                    query:     query
+                });
+            }
+
+            // ── Step 2: group by fingerprint (everything except method) ────
+            // Use an array to preserve insertion order of first-seen fingerprints.
+            var fingerprintOrder = [];
+            var groups = {}; // fingerprint → { methods: [], first: parsed-obj }
+
+            for (var j = 0; j < parsed.length; j++) {
+                var p = parsed[j];
+                var selectorKey  = p.selectors ? p.selectors.slice().sort().join("|") : "";
+                var queryKey     = p.query     ? p.query.slice().sort().join("&")     : "";
+                var fingerprint  = [
+                    p.path   || "",
+                    p.url    || "",
+                    p.ext    || "",
+                    selectorKey,
+                    p.suffix || "",
+                    queryKey
+                ].join("\x00");
+
+                if (!groups[fingerprint]) {
+                    groups[fingerprint] = { methods: [], first: p };
+                    fingerprintOrder.push(fingerprint);
+                }
+
+                var m = (p.method || "").toUpperCase();
+                if (m && groups[fingerprint].methods.indexOf(m) === -1) {
+                    groups[fingerprint].methods.push(m);
                 }
             }
-            $('#rulesbox').val(generated_rules);
+
+            // ── Step 3 & 4: generate one rule per group ────────────────────
+            for (var k = 0; k < fingerprintOrder.length; k++) {
+                var fp    = fingerprintOrder[k];
+                var group = groups[fp];
+                var f     = group.first;
+
+                group.methods.sort();
+
+                var methodValue;
+                if (group.methods.length === 0) {
+                    methodValue = null;
+                } else if (group.methods.length === 1) {
+                    methodValue = '"' + group.methods[0] + '"';
+                } else {
+                    methodValue = "'(" + group.methods.join("|") + ")'";
+                }
+
+                var ruleId = generateRuleId(f.path, f.ext, f.selectors, usedIds);
+                output += generateRule(ruleId, methodValue, f.path, f.url, f.ext, f.selectors, f.suffix, f.query);
+            }
+
+            document.getElementById("rulesbox").value = output;
         }
 
-        $(document).ready(function () {
-            $("#requestsbox").on('change keyup paste', function () {
-                generate();
-            });
+        var requestsbox = document.getElementById("requestsbox");
+        ["change", "keyup", "paste"].forEach(function (evt) {
+            requestsbox.addEventListener(evt, generate);
         });
+
+        // ── Matcher detail panel ───────────────────────────────────────────
+        var MATCHER_INFO = {
+            method: {
+                desc: "Matches the HTTP request method. Restrict to only the methods your content actually needs — most page and asset requests only require GET.",
+                examples: [
+                    { label: "Single (glob)",   code: '/method "GET"' },
+                    { label: "Multiple (regex)", code: "/method '(GET|HEAD)'" }
+                ]
+            },
+            url: {
+                desc: "Matches the full URL path including selectors, extension, and suffix — everything before the query string. Broader than /path + /extension combined. Best used alongside /path for tighter control.",
+                examples: [
+                    { label: "Path wildcard",    code: '/url "/content/site/*"' },
+                    { label: "Specific resource", code: '/url "/content/home.html*"' }
+                ]
+            },
+            path: {
+                desc: "Matches only the resource directory path, before selectors and extension. More precise than /url alone. Best practice: always pair with /extension to avoid exposing unintended renderers.",
+                examples: [
+                    { label: "Directory",        code: '/path "/content/dam/*"' },
+                    { label: "Locale subtree",   code: '/path "/content/site/en/*"' }
+                ]
+            },
+            selectors: {
+                desc: "Matches AEM selectors — the dot-separated segments between the resource name and extension (e.g. 'model' in page.model.json). Always restrict selectors to prevent exposing internal Sling renderers like .infinity or .tidy.",
+                examples: [
+                    { label: "Single (glob)",    code: '/selectors "model"' },
+                    { label: "Multiple (regex)", code: "/selectors '(model|print|data)'" }
+                ]
+            },
+            extension: {
+                desc: "Matches the file extension without the leading dot. Always specify — without it, Sling renderers like .infinity.json, .tidy.json, and .childrenlist.json may be inadvertently exposed.",
+                examples: [
+                    { label: "Single (glob)",    code: '/extension "html"' },
+                    { label: "Multiple (regex)", code: "/extension '(html|json|xml)'" }
+                ]
+            },
+            suffix: {
+                desc: "Matches the URL suffix — the path segment appended after the extension, prefixed with a slash (e.g. /my/suffix in page.html/my/suffix). Used when Sling URL suffix patterns are required by the component.",
+                examples: [
+                    { label: "Any suffix",       code: '/suffix "/*"' },
+                    { label: "Specific pattern", code: '/suffix "/jcr:content/*"' }
+                ]
+            },
+            query: {
+                desc: "Matches query string parameters. Values should be wildcarded since actual values are user-supplied. Single parameter uses glob; multiple parameters use regex alternation.",
+                examples: [
+                    { label: "Single (glob)",    code: '/query "wcmmode=*"' },
+                    { label: "Multiple (regex)", code: "/query '(page=.*|limit=.*)'" }
+                ]
+            }
+        };
+
+        var activeMatcher = null;
+
+        function toggleMatcher(el) {
+            var name = el.getAttribute("data-matcher");
+            var detail = document.getElementById("matcher-detail");
+
+            // Deactivate all badges
+            document.querySelectorAll(".badge[data-matcher]").forEach(function (b) {
+                b.classList.remove("active");
+            });
+
+            // Clicking the active badge closes the panel
+            if (activeMatcher === name) {
+                activeMatcher = null;
+                detail.classList.remove("visible");
+                detail.innerHTML = "";
+                return;
+            }
+
+            activeMatcher = name;
+            el.classList.add("active");
+
+            var info = MATCHER_INFO[name];
+            var color = getComputedStyle(document.documentElement)
+                .getPropertyValue("--c-" + name).trim();
+
+            var examplesHtml = info.examples.map(function (ex) {
+                return '<div class="detail-example">' +
+                    '<span class="detail-example-label">' + ex.label + '</span>' +
+                    '<span class="detail-example-code">' + ex.code + '</span>' +
+                    '</div>';
+            }).join("");
+
+            detail.innerHTML =
+                '<div class="detail-name" style="color:' + color + '">' + name + '</div>' +
+                '<div class="detail-desc">' + info.desc + '</div>' +
+                '<div class="detail-examples">' + examplesHtml + '</div>';
+
+            detail.classList.add("visible");
+        }
     </script>
-    <style>
-        #matcher-legend td {
-            background: black;
-            padding: 5px;
-            width: 20px;
-        }
 
-        #main-title {
-            padding: 5px;
-            text-align: center;
-        }
-
-        #main-title h1 {
-            margin-top: -5px;
-            font-size: 50px;
-            font: bold arial, sans-serif;
-            background-color: #565656;
-            color: transparent;
-            font-weight: bold;
-            text-shadow: 2px 2px 3px rgba(255, 255, 255, 0.5);
-            -webkit-background-clip: text;
-            -moz-background-clip: text;
-            background-clip: text;
-            padding-left: 15px;
-        }
-
-        #main-title img {
-            max-height: 50px;
-            display: inline;
-        }
-
-        #main-title p {
-            margin-top: -60px;
-            color: black;
-        }
-
-        body {
-            background: #fff;
-        }
-
-        textarea {
-            width: 99%;
-        }
-
-        h1 {
-            color: #ffffff;
-            font-family: 'Lato', sans-serif;
-            font-size: 35px;
-            font-weight: 300;
-            line-height: 58px;
-            margin: 0 0 58px;
-        }
-
-        p {
-            color: #adb7bd;
-            font-family: 'Lucida Sans', Arial, sans-serif;
-            font-size: 12px;
-            line-height: 26px;
-            text-indent: 30px;
-            margin: 0;
-        }
-
-        a {
-            color: red;
-            text-decoration: underline;
-        }
-
-        a:hover {
-            color: #ffffff;
-        }
-
-        .method {
-            color: green;
-        }
-
-        .glob {
-            color: red;
-        }
-
-        .url {
-            color: blue;
-        }
-
-        .path {
-            color: purple;
-        }
-
-        .selectors {
-            color: yellow;
-        }
-
-        .extension {
-            color: aqua;
-        }
-
-        .suffix {
-            color: grey;
-        }
-
-        .query {
-            color: pink;
-        }
-
-        textarea {
-            box-shadow: inset 0 0 5px black;
-            padding: 5px;
-            background: #1d1f21;
-            color: #ccc;
-            font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
-            text-align: left;
-            white-space: pre;
-            word-spacing: normal;
-            word-break: normal;
-            word-wrap: normal;
-            line-height: 1.5;
-            tab-size: 4;
-            hyphens: none;
-        }
-
-        button {
-            background-color: #ffffff;
-            border: 2px black solid;
-            padding: 10px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 12px;
-            font-weight: bold;
-            border-radius: 20px;
-        }
-
-        #adobe-logo-square {
-            background-color: #df2624;
-            padding: 10px;
-            width: 60px;
-            height: 50px;
-        }
-
-        #adobe-logo {
-            height: 50px;
-            overflow: hidden;
-            position: relative;
-            width: 58px;
-        }
-
-        #adobe-logo * {
-            position: absolute;
-        }
-
-        .adobe-logo-part1,
-        .adobe-logo-part2,
-        .adobe-logo-part3 {
-            background: #fff;
-        }
-
-        .adobe-logo-part1 {
-            height: 61px;
-            left: 11px;
-            top: -5px;
-            transform: rotate(23deg);
-            width: 14px;
-        }
-
-        .adobe-logo-part2 {
-            height: 61px;
-            left: 32px;
-            top: -5px;
-            transform: rotate(-23deg);
-            width: 14px;
-        }
-
-        .adobe-logo-part3 {
-            height: 10px;
-            left: 12px;
-            top: 40px;
-            transform: skewx(22deg);
-            width: 18px;
-        }
-    </style>
-</head>
-
-<body>
-    <table>
-        <tr>
-            <td>
-                <div id="adobe-logo-square">
-                    <div id="adobe-logo">
-                        <div class="adobe-logo-part1"></div>
-                        <div class="adobe-logo-part2"></div>
-                        <div class="adobe-logo-part3"></div>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div id="main-title">
-                    <h1>Dispatcher Filter Fiddler</h1>
-                    <p>
-                        A play area to put in a request line and auto-generate a filter to allow it
-                    </p>
-                </div>
-            </td>
-        </tr>
-    </table>
-    
-    Requests:
-    <textarea id="requestsbox" placeholder="Input your request URI's here i.e. GET /content/home.html" rows="20" cols="150"></textarea>
-    Generated Rules:
-    <textarea id="rulesbox" placeholder="Results will show up here" rows="20" cols="150"></textarea>
-    <button onclick="copy()">Copy to Clipboard</button>
 </body>
 </html>
